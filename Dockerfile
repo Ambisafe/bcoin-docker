@@ -1,22 +1,22 @@
-FROM nfnty/arch-mini:latest
-MAINTAINER Steven Bower <steven@purse.io>
+FROM alpine:3.5
+MAINTAINER Ihor Savchenko <ihor@ambisafe.co>
 
-# Build deps
-RUN pacman -Syu --noconfirm nodejs npm unrar git python2 base-devel
+ARG BCOIN_VERSION
 
-ENV BCOIN_BRANCH master
-ENV BCOIN_REPO https://github.com/bcoin-org/bcoin.git
+# Cache buster
+ADD http://www.random.org/strings/?num=10&len=8&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new uuid
 
-RUN mkdir -p /code/node_modules/bcoin /data
-RUN git clone --branch $BCOIN_BRANCH $BCOIN_REPO /code/node_modules/bcoin
+ENV BCOIN_BRANCH=$BCOIN_VERSION \
+    BCOIN_REPO=https://github.com/bcoin-org/bcoin.git
 
-# Installation
-WORKDIR /code/node_modules/bcoin
-RUN npm install --production
+RUN apk --no-cache add bash build-base git make nodejs python unrar \
+    && mkdir -p /code/node_modules/bcoin /data \
+    && git clone --branch $BCOIN_BRANCH $BCOIN_REPO /code/node_modules/bcoin \
+    && cd /code/node_modules/bcoin \
+    && npm install --production \
+    && npm uninstall node-gyp \
+    && apk del build-base make python unrar
 
-# Cleanup
-RUN npm uninstall node-gyp
-RUN pacman -Rns --noconfirm unrar python2 && \
-                rm /var/cache/pacman/pkg/*
+ADD bcoin.example.conf /data/bcoin.conf
 
 CMD ["node", "/code/node_modules/bcoin/bin/node"]
